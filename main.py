@@ -17,6 +17,7 @@ Usage:
                                trailing whitespace, no control characters)
 """
 
+import subprocess
 import sys
 
 PITCH = (
@@ -72,6 +73,25 @@ def self_test():
     check("leading space", " " + PITCH, False)
     check("trailing space", PITCH + " ", False)
     check("tab inside", "a\tb", False)
+
+    # Round-trip: the program's real stdout must be exactly the pitch
+    # plus one newline, identical under plain and optimised runs.
+    expected = (PITCH + "\n").encode("utf-8")
+    for flags in ([], ["-O"]):
+        run = subprocess.run(
+            [sys.executable, *flags, __file__],
+            capture_output=True,
+        )
+        if run.returncode != 0:
+            failures.append(
+                "stdout %s: exit %d, stderr %r"
+                % (" ".join(flags) or "plain", run.returncode, run.stderr)
+            )
+        elif run.stdout != expected:
+            failures.append(
+                "stdout %s: %d bytes, expected %d"
+                % (" ".join(flags) or "plain", len(run.stdout), len(expected))
+            )
 
     if failures:
         for failure in failures:
